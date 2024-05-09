@@ -47,5 +47,29 @@ tokenized = list(review)
 #  ' ',
 #  '시',
 #  '각', ...
+#%%
+"""
+자모 단위 토큰화
+"""
+import jamo
+from jamo import h2j, j2hcj
 
+review = "현실과 구분 불가능한 cg. 시각적 즐거움은 최고! 더불어 ost는 더더욱 최고!!"
+decomposed = j2hcj(h2j(review))
+list(decomposed)
+# ['ㅎ',
+#  'ㅕ',
+#  'ㄴ',
+#  'ㅅ',
+#  'ㅣ',
+#  'ㄹ',
+#  'ㄱ',
+#  'ㅘ',
+#  ' ',
+#  'ㄱ',
+#  'ㅜ',
+#  'ㅂ',
+#  'ㅜ',
 
+#적은 크기의 단어 사전 구축 가능
+#개별 토큰은 아무 의미가 없음
