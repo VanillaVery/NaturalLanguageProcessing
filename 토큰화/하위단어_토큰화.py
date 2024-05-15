@@ -44,3 +44,85 @@ SentencePieceTrainer.Train(
     --model_prefix=petition_bpe \
     --vocab_size=8000 model_type=bpe"
 )
+
+#%%
+#모델과 어휘 사전 파일을 활용한 바이트 페어 인코딩 수행
+from sentencepiece import SentencePieceProcessor
+
+tokenizer = SentencePieceProcessor()
+tokenizer.load("petition_bpe.model")
+
+sentence = "안녕하세요, 토크나이저가 잘 학습되었군요!"
+sentences = ["너무 늦게 공부를 시작해서","굉장히 졸리고 자고싶군요?","하지만 이건 끝내고 자겠습니다"]
+
+tokenize_sentence = tokenizer.encode_as_pieces(sentence) #문장 토큰화
+tokenize_sentences = tokenizer.encode_as_pieces(sentences)
+
+print("단일 문장 토큰화:",  tokenize_sentence)
+print("여러 문장 토큰화:", tokenize_sentences)
+
+encoding_sentence = tokenizer.encode_as_ids(sentence) #토큰을 정수로 인코딩 / 정수=토큰에 매핑된 id값
+encoding_sentences = tokenizer.encode_as_ids(sentences)
+
+print("단일 문장 정수 인코딩:",  encoding_sentence)
+print("여러 문장 정수 인코딩:", encoding_sentences)
+
+decode_ids = tokenizer.decode_ids(encoding_sentences)
+decode_pieces = tokenizer.decode_pieces(encoding_sentences)
+
+print("정수 인코딩에서 문장 변환:",decode_ids)
+print("하위 단어 토큰에서 문장 변환:",decode_pieces)
+
+
+# 단일 문장 토큰화: ['▁안녕하세요', ',', '▁토', '크', '나', '이', '저', '가', '▁잘', '▁학', '습', '되었', '군요', '!']
+# 여러 문장 토큰화: [['▁너무', '▁늦게', '▁공부를', '▁시작', '해서'], ['▁굉장히', '▁졸', '리고', '▁자', '고싶', '군요', '?'], ['▁하지만', '▁이건', '▁끝', '내고', '▁자', '겠습니다']]
+# 단일 문장 정수 인코딩: [667, 6553, 994, 6880, 6544, 6513, 6590, 6523, 161, 110, 6554, 872, 787, 6648]
+# 여러 문장 정수 인코딩: [[172, 5072, 3957, 828, 91], [4238, 1756, 120, 32, 2826, 787, 6581], [280, 1012, 731, 1514, 32, 252]]
+# 정수 인코딩에서 문장 변환: ['너무 늦게 공부를 시작해서', '굉장히 졸리고 자고싶군요?', '하지만 이건 끝내고 자겠습니다']
+# 하위 단어 토큰에서 문장 변환: ['너무 늦게 공부를 시작해서', '굉장히 졸리고 자고싶군요?', '하지만 이건 끝내고 자겠습니다']
+#%%
+# 어휘 사전 불러오기
+from sentencepiece import SentencePieceProcessor
+
+tokenizer = SentencePieceProcessor()
+tokenizer.load("petition_bpe.model")
+
+vocab = {idx:tokenizer.id_to_piece(idx) for idx in range(tokenizer.get_piece_size())}
+print(list(vocab.items())[:5])
+#%%
+#토크나이저스
+#허깅 페이스의 토크나이저스 라이브러리 이용 / 정규화와 사전 토큰화 제공
+
+#정규화: 불필요한 공백 제고, 대소문자 변환, 유니코드 정규화 등등
+#사전 토큰화: 입력 문장을 토큰화하기 전에 단어와 같은 작은 단위로 나누는 기능 제공
+
+from tokenizers import Tokenizer
+from tokenizers.models import WordPiece
+from tokenizers.normalizers import Sequence,NFD, Lowercase
+from tokenizers.pre_tokenizers import Whitespace
+
+tokenizer = Tokenizer(WordPiece())
+tokenizer.nomalizer = Sequence([NFD(),Lowercase()]) # 유니코드 정규화, 소문자 변환
+tokenizer.pre_tokenizer = Whitespace() #공백, 구두점 기준 분리
+
+tokenizer.train(['../datasets/corpus.txt'])
+tokenizer.save("../model/petition_wordpiece.json")
+#%%
+#워드피스 토큰화
+from tokenizers import Tokenizer
+from tokenizers.decoders import WordPiece as WordPieceDecoder
+
+tokenizer = Tokenizer.from_file("../model/petition_wordpiece.json")
+tokenizer.decoder = WordPieceDecoder()
+
+sentence = "아니, 4장만 하면 되는 공부를 몇시간째 하고 있는거야"
+sentences = ["아니야, 스스로를 비난하지 말자!","꾸역꾸역 하고 있는 게 얼마나 대견해!?"]
+
+encoded_sentence = tokenizer.encode(sentence)
+print(encoded_sentence.tokens)
+# ['아니', ',', '4', '##장', '##만', '하면', '되는', '공부를', '몇', '##시간', '##째', '하고', '있는거', '##야']
+
+encoded_sentences =tokenizer.encode_batch(sentences)
+print([enc.tokens for enc in encoded_sentences])
+# [['아니', '##야', ',', '스스로', '##를', '비난', '##하지', '말', '##자', '!'],
+#  ['꾸', '##역', '##꾸', '##역', '하고', '있는', '게', '얼마나', '대', '##견', '##해', '!', '##?']]
