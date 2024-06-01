@@ -18,10 +18,10 @@
 from torch import nn
 
 class VanillaSkipgram(nn.Module):
-    def __init__(self,vocab_size , embedding_dim):
+    def __init__(self, vocab_size , embedding_dim):
         super().__init__()
         self.embedding = nn.Embedding(
-            num_embedding = vocab_size,
+            num_embeddings = vocab_size,
             embedding_dim = embedding_dim
         )
         self.linear = nn.Linear(
@@ -29,10 +29,10 @@ class VanillaSkipgram(nn.Module):
             out_features =  vocab_size
         )
 
-def foward(self,input_ids):
-    embedding = self.embedding(input_ids) # lookup vector
-    output = self.linear(embedding)
-    return output # 내적값
+    def forward(self,input_ids):
+        embedding = self.embedding(input_ids) # lookup vector
+        output = self.linear(embedding)
+        return output # 내적값
 
 #%%
 # 모델 학습에 사용할 데이터세트 로드, 코포라 라이브러리의 네이버 영화 리뷰 감정 분석 데이터세트 
@@ -95,3 +95,94 @@ def get_word_pairs(tokens, window_size):
 word_pairs = get_word_pairs(morphs, window_size = 2)
 print(word_pairs[:10])
 # [['굳', 'ㅋ'], ['ㅋ', '굳'], ['뭐', '이'], ['뭐', '야'], ['이', '뭐'], ['이', '야'], ['이', '이'], ['야', '뭐'], ['야', '이'], ['야', '이']]
+#%%
+# 임베딩 층이 단어의 인덱스를 입력으로 받기 때문에 단어쌍을 인덱스 쌍으로 변환
+def get_index_pairs(word_pairs,tokens_to_id):
+    pairs = []
+    unk_index = tokens_to_id["<unk>"]
+    for word_pair in word_pairs: # 주변 단어, 중심 단어 쌍을 순회
+        center_word, context_word = word_pair
+        center_index = tokens_to_id.get(center_word,unk_index) # 해당 토큰이 있으면 인덱스 반환, 없으면 unk 인덱스 반환
+        context_index = tokens_to_id.get(context_word,unk_index) # 해당 토큰이 있으면 인덱스 반환, 없으면 unk 인덱스 반환
+        pairs.append([center_index,context_index])
+    return pairs
+
+index_pairs = get_index_pairs(word_pairs,tokens_to_id)
+print(index_pairs[:5]) #해당 인덱스 쌍은 skipgram 모델의 입력 데이터로 사용됨
+#%%
+#인덱스 쌍을 데이터로더에 적용 
+import torch
+from torch.utils.data import TensorDataset, DataLoader
+
+index_pairs = torch.tensor(index_pairs)
+center_indexes = index_pairs[:,0]
+context_indexes = index_pairs[:,1]
+
+dataset = TensorDataset(center_indexes,context_indexes)
+dataloader = DataLoader(dataset, batch_size = 32,shuffle=True)
+#%%
+#skip-gram 모델 준비 작업
+from torch import optim
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+word2vec = VanillaSkipgram(vocab_size= len(tokens_to_id),embedding_dim=128).to(device)
+criterion = nn.CrossEntropyLoss().to(device)
+optimizer = optim.SGD(word2vec.parameters(),lr=0.1)
+#%%
+#모델 학습
+from tqdm import tqdm
+for epoch in tqdm(range(10)):
+    cost = 0.0
+    for input_ids, target_ids in dataloader: #배치
+        input_ids = input_ids.to(device)
+        target_ids = target_ids.to(device)
+
+        logits = word2vec(input_ids)
+        # print(logits)
+        loss = criterion(logits,target_ids)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        cost+=loss
+    print(logits)
+    cost = cost / len(dataloader)
+    print(f"Epoch : {epoch+1:4d}, Cost : {cost:.3f}")
+
+#%%
+#임베딩 값 추출
+
+token_to_embedding =dict()
+embedding_matrix = word2vec.embedding.weight.detach().cpu().numpy()
+
+for word, embedding in zip(vocab, embedding_matrix):
+    token_to_embedding[word] = embedding
+
+index = 30
+token = vocab[30]
+token_embedding = token_to_embedding[token]
+print(token)
+print(token_embedding)
+#%%
+#단어 임베딩 유사도 계산
+import numpy as np
+from numpy.linalg import norm
+
+def cosine_similarity(a,b):
+    """
+    입력 단어와 단어 사전 내의 모든 단어와의 코사인 유사도 계산
+    a: 임베딩 토큰 -> [,128]
+    b: 임베딩 행렬 -> [N,128]이므로 노름 계산시 axis=1 방향으로 계산
+    """
+    cosine = np.dot(b,a)/(norm(b,axis=1)*norm(a))
+    return cosine
+
+def top_n_index(cosine_matrix, n):
+    closest_indexes = cosine_matrix.argsort()[::-1]
+    top_n = closest_indexes[1: n+1]
+    return top_n
+
+cosine_matrix = cosine_similarity(token_embedding,embedding_matrix)
+top_n = top_n_index(cosine_matrix,n=5)
+
