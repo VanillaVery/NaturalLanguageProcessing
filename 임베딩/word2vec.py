@@ -151,6 +151,52 @@ for epoch in tqdm(range(10)):
     print(f"Epoch : {epoch+1:4d}, Cost : {cost:.3f}")
 
 #%%
+input_ids, _ = next(iter(dataloader))
+input_ids.shape
+#%%
+criterion(logits,target_ids)
+
+"""
+x = (x1, x2, x3): one-hot
+x ~ [p1, p2, p3]: output of softmax
+f(x) = \prod_{i=1}^3 p_i^{I(x_i = 1)}
+
+x = (1, 0, 0)
+f(x) = p_1^{I(x1 = 1)} * p_2^{I(x2 = 1)} * p_3^{I(x3 = 1)}
+= p_1^{1} * p_2^{0} * p_3^{0}
+= p_1
+
+f(x) = p_1
+log f(x) = log p_1
+: 정답인 클래스에 해당하는 index의 로그 확률 = log-가능도함수
+
+[목적함수]
+E_{p(x)} [log-가능도함수(x)]: 실제로 계산못함 왜 why? 우리는 데이터의 분포를 모른다,
+단, 데이터 자체 즉 n개의 sample은 가지고 있다
+따라서 Monte-Carlo sampling을 이용해 근사한다
+
+우리가 Weak Law-of-large-number에 따르면, 평균을 계산하는 데이터의 개수가 무한이 되면,
+이는 기댓값에 수렴한다
+이 사실을 이용하면, 목적함수의 기댓값은 다음과 같이 근사할 수 있다
+
+1/n \sum_{i=1}^n [log-가능도함수(x_i)]
+
+[log-가능도함수]: 최대화
+[목적함수]: 최소화
+서로 음의 관계
+"""
+# 안에서 돌아가고 있는 로직
+loss_my = 0
+for j in range(len(logits)):
+    loss_my += logits[j, :].softmax(dim=0).log()[target_ids[j]] # 1개의 sample에 대한 log-가능도함수
+loss_my / len(logits) # log-가능도함수
+- loss_my / len(logits) # 목적함수 = criterion의 값과 같아야 함
+
+
+logits[0, :].shape
+logits[[0], :].shape
+target_ids
+#%%
 #임베딩 값 추출
 
 token_to_embedding =dict()
