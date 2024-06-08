@@ -91,3 +91,91 @@ print(outputs.shape) # torch.Size([4, 6, 128])
 print(h_n.shape) # torch.Size([6, 4, 64])
 print(c_n.shape) # torch.Size([6, 4, 256])
 
+#%%
+# 모델 실습
+# rnn, lstm을 이용한 문장 긍/부정 분류
+
+#문장 분류 모델 
+import torch
+from torch import nn
+
+class SentenceClassifier(nn.Module):
+    def __init__(
+            self,
+            n_vocab,
+            hidden_dim,
+            embedding_dim,
+            n_layers,
+            dropout = 0.5,
+            bidirectional = True,
+            model_type ="lstm"
+    ):
+        super().__init__()
+
+        self.embedding = nn.Embedding(
+            num_embeddings=n_vocab,
+            embedding_dim=embedding_dim,
+            padding_idx=0
+        )
+        if model_type == "rnn":
+            self.model = nn.RNN(
+                input_size=embedding_dim,
+                hidden_size=hidden_dim,
+                num_layers=n_layers,
+                bidirectional = bidirectional,
+                dropout=dropout,
+                batch_first=True 
+            )
+        elif model_type == "lstm":
+            self.model = nn.LSTM(
+                input_size=embedding_dim,
+                hidden_size=hidden_dim,
+                num_layers=n_layers,
+                bidirectional=bidirectional,
+                dropout=dropout,
+                batch_first=True
+            )
+        if bidirectional:
+            self.classifier = nn.Linear(hidden_dim * 2,1)
+        else:
+            self.classifier = nn.Linear(hidden_dim ,1)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, inputs):
+        embeddings = self.embedding(inputs)
+        output, _ = self.model(embeddings)
+        last_output = output[:,-1,:]
+        last_output = self.dropout(last_output)
+        logits = self.classifier(last_output)
+        return logits
+
+
+# model = SentenceClassifier(
+#     n_vocab=10000,
+#     hidden_dim=128,
+#     embedding_dim=300,
+#     n_layers=2,
+#     dropout=0.5,
+#     bidirectional=True,
+#     model_type="lstm",
+
+# )
+# inputs = torch.randint(10000, (32, 50))  # (batch_size, sequence_length)
+# logits = model(inputs)
+# print(logits.shape)
+#%%
+#데이터 세트 불러오기 
+# 네이버 영화 리뷰 감정 분석 데이터세트 
+import pandas as pd
+from Korpora import Korpora
+
+corpus = Korpora.load("nsmc")
+corpus_df = pd.DataFrame(corpus.test)
+
+train = corpus_df.sample(frac=0.9, random_state=42)
+test = corpus_df.drop(train.index)
+
+print(train.head(5).to_markdown())
+
+#%%
+# 데이터 토큰화 및 단어 사전 구축
