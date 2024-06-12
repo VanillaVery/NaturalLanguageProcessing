@@ -176,6 +176,71 @@ train = corpus_df.sample(frac=0.9, random_state=42)
 test = corpus_df.drop(train.index)
 
 print(train.head(5).to_markdown())
+# |       | text                                                                                     |   label |
+# |------:|:-----------------------------------------------------------------------------------------|--------:|
+# | 33553 | 모든 편견을 날려 버리는 가슴 따뜻한 영화. 로버트 드 니로, 필립 세이모어 호프만 영원하라. |       1 |
+# |  9427 | 무한 리메이크의 소재. 감독의 역량은 항상 그 자리에...                                    |       0 |
+# |   199 | 신날 것 없는 애니.                                                                       |       0 |
+# | 12447 | 잔잔 격동                                                                                |       1 |
+# | 39489 | 오랜만에 찾은 주말의 명화의 보석                                                         |       1 |
 
 #%%
 # 데이터 토큰화 및 단어 사전 구축
+from kiwipiepy import Kiwi
+from collections import Counter
+
+def build_vocab(corpus, n_vocab,special_tokens):
+    counter = Counter()
+    for tokens in corpus:
+        counter.update(tokens)
+    vocab = special_tokens
+    for token, count in counter.most_common(n_vocab):
+        vocab.append(token)
+    return vocab 
+
+kiwi = Kiwi()
+train_tokens =[kiwi.tokenize(review) for review in train.text] #품사 태깅
+train_tokens = [[t.form for t in token] for token in train_tokens] #형태소만 가져옴
+
+test_tokens =[kiwi.tokenize(review) for review in test.text] #품사 태깅
+test_tokens = [[t.form for t in token] for token in test_tokens] #형태소만 가져옴
+
+vocab = build_vocab(corpus=train_tokens, n_vocab=5000 , special_tokens = ["<pad>","<unk>"])
+# 토큰(단어) 사전 구축 완료 
+token_to_id = {token:idx for idx,token in enumerate(vocab)}
+id_to_token = {id:token for idx,token in enumerate(vocab)}
+
+#%%
+#임베딩 층을 사용하기 위해 토큰을 정수로 변환 & 패딩
+import numpy as np
+
+def pad_sequences(sequences, max_length, pad_value):
+    """
+    너무 긴 문장은 최대 길이로 줄이고, 너무 작은 길이라면 최대 길이와 동일한 크기로 변환
+    <pad>토큰을 뒤에 붙여 동일한 길이로 변경
+    """
+    result = list()
+    for sequence in sequences:
+        sequence = sequence[:max_length]
+        pad_length = max_length - len(sequence)
+        padded_sequence = sequence + [pad_value] * pad_length
+        result.append(padded_sequence)
+    return np.asarray(result)
+
+unk_id = token_to_id["<unk>"]
+train_ids = [[token_to_id.get(tokens,unk_id) for tokens in review] for review in train_tokens]
+test_ids = [[token_to_id.get(tokens,unk_id) for tokens in review] for review in test_tokens]
+
+max_length = 32
+pad_id = token_to_id["<pad>"]
+train_ids = pad_sequences(train_ids, max_length, pad_id)
+test_ids = pad_sequences(test_ids, max_length, pad_id)
+
+print(train_ids)
+# array([[ 288, 1553,   18, ...,    0,    0,    0],
+#        [2453,  955,   14, ...,    0,    0,    0],
+#        [ 360,   23,   20, ...,    0,    0,    0],
+#        ...,
+#        [1937,   55,   15, ...,    0,    0,    0],
+#        [ 125,    0,    0, ...,    0,    0,    0],
+#        [ 133,  976,  121, ...,    0,    0,    0]])
