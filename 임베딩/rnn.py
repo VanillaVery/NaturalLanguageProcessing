@@ -244,3 +244,35 @@ print(train_ids)
 #        [1937,   55,   15, ...,    0,    0,    0],
 #        [ 125,    0,    0, ...,    0,    0,    0],
 #        [ 133,  976,  121, ...,    0,    0,    0]])
+#%%
+# 데이터로더 적용
+
+import torch
+from torch.utils.data import TensorDataset, DataLoader
+
+train_ids = torch.tensor(train_ids)
+test_ids = torch.tensor(test_ids)
+
+train_labels = torch.tensor(train.label.values, dtype = torch.float32)
+test_labels = torch.tensor(test.label.values, dtype = torch.float32)
+
+train_dataset = TensorDataset(train_ids,train_labels)
+test_dataset = TensorDataset(test_ids,test_labels)
+
+train_loader = DataLoader(train_dataset, batch_size = 16, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size = 16, shuffle=False)
+
+#%%
+
+#손실 함수와 최적화 함수 정의 
+from torch import optim
+
+n_vocab = len(token_to_id)
+hidden_dim = 64
+embedding_dim = 128
+n_layers = 2
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+classifier = SentenceClassifier(
+    n_vocab=n_vocab, hidden_dim=hidden_dim, embedding_dim = embedding_dim, n_layers = n_layers).to(device)
+criterion = nn.BCEWithLogitsLoss().to(device)
