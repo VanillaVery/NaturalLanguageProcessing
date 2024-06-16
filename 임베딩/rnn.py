@@ -276,3 +276,62 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 classifier = SentenceClassifier(
     n_vocab=n_vocab, hidden_dim=hidden_dim, embedding_dim = embedding_dim, n_layers = n_layers).to(device)
 criterion = nn.BCEWithLogitsLoss().to(device)
+optimizer = optim.RMSprop(classifier.parameters(), lr=0.001)
+
+#%%
+#모델 학습 및 테스트
+def train(model, datasets, criterion, optimizer, device, interval):
+    model.train()
+    losses = list()
+
+    for step, (input_ids, labels) in enumerate(datasets):
+        input_ids = input_ids.to(device)
+        labels = labels.to(device).unsqueeze(1)
+
+        logits = model(input_ids)
+        loss = criterion(logits, labels)
+        losses.append(loss.item())
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        if step % interval == 0 :
+            print(f"Train loss {step} : {np.mean(losses)}")
+
+def test(model, datasets, criterion, device):
+    model.eval()
+    losses = list()
+    corrects = list()
+
+    for step, (input_ids, labels) in enumerate(datasets):
+        input_ids = input_ids.to(device)
+        labels = labels.to(device).unsqueeze(1)
+
+        logits = model(input_ids)
+        loss = criterion(logits, labels)
+        losses.append(loss.item())
+        yhat = torch.sigmoid(logits)>.5 #결과값이 0.5보다 크면 True or False 출력 
+        corrects.extend(
+            torch.eq(yhat, labels).cpu().tolist()
+        )
+    print(f"Val loss: {np.mean(losses)}, Val Accuracy: {np.mean(corrects)}")
+
+epochs = 5
+interval = 500
+
+for epoch in range(epochs):
+    train(classifier, train_loader, criterion, optimizer, device, interval)
+    test(classifier, test_loader, criterion, device)
+
+
+#%%
+# 학습된 모델로부터 단어 사전의 임베딩 추출
+token_to_embedding = dict()
+embedding_matrix = classifier.embedding.weight.detach().numpy()
+
+for word, emb in zip(vocab, embedding_matrix):
+    token_to_embedding[word] = emb
+
+token = vocab[1000]
+print(token, token_to_embedding[token])
