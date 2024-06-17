@@ -335,3 +335,5 @@ for word, emb in zip(vocab, embedding_matrix):
 
 token = vocab[1000]
 print(token, token_to_embedding[token])
+#그러나 긍 부정 분류의 경우 임베딩 계층이 아닌 순환 신경망의 연산이 더 중요하게 동작하므로, 
+#모델이 복잡할수록 임베딩 계층이 토큰의 의미 정보를 학습하기는 더 어렵다.
