@@ -150,6 +150,7 @@ for epoch in tqdm(range(10)):
     cost = cost / len(dataloader)
     print(f"Epoch : {epoch+1:4d}, Cost : {cost:.3f}")
 
+word2vec.save("../model/word2vec.model")
 #%%
 input_ids, _ = next(iter(dataloader))
 input_ids.shape
