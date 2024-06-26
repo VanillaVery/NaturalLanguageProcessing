@@ -30,4 +30,9 @@ class PositionalEncoding(nn.Module):
         x = x + self.pe[:,x.size(0)]
         return self.dropout(x)
     
+#%%
+# 특수 토큰
+# 트랜스포머 인코더 
+# 트랜스포머 디코더
+
 
