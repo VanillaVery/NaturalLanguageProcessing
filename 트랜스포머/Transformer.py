@@ -179,4 +179,33 @@ class Seq2SeqTransformer(nn.Module):
                 self.positional_encoding(self.tgt_tok_emb(tgt)), memory, tgt_mask
             )
 
-        
+#%%
+# 파이토치의 트랜스포머 클래스를 활용
+# 트랜스포머 모델을 정의 
+transformer = torch.nn.Transformer(
+    d_model = 512, #임베딩 차원
+    nhead = 8, #멀티 헤드 어텐션의 헤드의 개수를 정의 (헤드의 개수가 많을수록 병렬 처리 능력 증가 but 매개변수의 수도 증가)
+    num_encoder_layers=6, #인코더와 디코더의 계층 수, 복잡도와 성능 (많을수록 복잡한 문제를 해결가능 but 과대적합 가능성)
+    num_decoder_layers=6,
+    dim_feedforward=2048, # 순방향 신경망의 은닉층 크기 / 복잡도와 성능
+    dropout=0.1, 
+    activation=torch.nn.functional.relu, 
+    layer_norm_eps=1e-05,
+)
+
+#%%
+# 트랜스포머 순방향 메서드
+output = transformer.forward(
+    src, # 인코더에 대한 시퀀스 [소스 시퀀스 길이, 배치 크기, 임베딩 차원] 형태의 데이터 입력
+    tgt, # 디코더에 대한 시퀀스
+    src_mask=None, # 소스 시퀀스의 마스크, [소스 시퀀스 길이, 시퀀스 길이] (?)
+    tgt_mask=None,
+    memory_mask=None, # 인코더 출력의 마스크, [타깃 시퀀스 길이, 소스 시퀀스 길이]의 형태, 메모리 마스크가 0인 위치에서는 연산 x
+    src_key_padding_mask=None, # 입력 시퀀스에서 패딩 토큰이 위치한 부분을 가리키는 이진 마스크 
+    tgt_key_padding_mask=None,
+    memory_key_padding_mask=None
+    )
+# 입력 시퀀스-> 타깃 시퀀스의 임베딩 텐서를 반환 [타깃 시퀀스 길이, 배치 크기, 임베딩 차원]
+# 현재 클래스에서는 어휘 사전에 대한 로짓을 생성하므로, 임베딩 차원이 타깃 데이터의 어휘 사전 크기로 변경
+
+#%%
